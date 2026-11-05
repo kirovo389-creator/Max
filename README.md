@@ -3,7 +3,7 @@
 A procedural cinematic 3D scene of an ancient living-wood staff crowned by a prismatic magical orb.
 
 ## Final render target
-- MP4: 1920×1080, 60 fps, 8 seconds, H.264
+- MP4: 1920×1080, 60 fps, 8 seconds, H.264 (Lanczos-upscaled from a 1536×864 EEVEE render to fit the free CPU-runner budget)
 - Editable source: `wildheart_staff.blend`
 - Visual proof: contact sheet + 4-second preview still
 
