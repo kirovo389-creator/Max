@@ -34,9 +34,21 @@ jobs:
         run: |
           set -euo pipefail
           FILE="blender-4.5.15-linux-x64.tar.xz"
-          BASE="https://download.blender.org/release/Blender4.5"
-          curl -fL --retry 4 --retry-delay 3 "$BASE/$FILE" -o "$FILE"
-          curl -fsSL "$BASE/blender-4.5.15.sha256" -o blender.sha256
+          BASES=(
+            "https://mirror.blender.org/release/Blender4.5"
+            "https://mirrors.zju.edu.cn/blender/release/Blender4.5"
+            "https://download.blender.org/release/Blender4.5"
+          )
+          DOWNLOADED=0
+          for BASE in "${BASES[@]}"; do
+            echo "Trying Blender mirror: $BASE"
+            if curl -fL --retry 2 --retry-all-errors --retry-delay 3 "$BASE/$FILE" -o "$FILE"; then
+              DOWNLOADED=1
+              break
+            fi
+          done
+          test "$DOWNLOADED" -eq 1
+          curl -fsSL "https://mirror.blender.org/release/Blender4.5/blender-4.5.15.sha256" -o blender.sha256
           EXPECTED="$(grep "$FILE" blender.sha256 | awk '{print $1}' | head -n1)"
           test -n "$EXPECTED"
           echo "$EXPECTED  $FILE" | sha256sum --check -
