@@ -91,12 +91,12 @@ def make_orb_material(name, phase):
     n = m.node_tree.nodes
     l = m.node_tree.links
     bs = n.get("Principled BSDF")
-    bs.inputs["Metallic"].default_value = 0.14
-    bs.inputs["Roughness"].default_value = 0.16
+    bs.inputs["Metallic"].default_value = 0.28
+    bs.inputs["Roughness"].default_value = 0.32
     bs.inputs["IOR"].default_value = 1.38
     if "Coat Weight" in bs.inputs:
-        bs.inputs["Coat Weight"].default_value = 0.72
-        bs.inputs["Coat Roughness"].default_value = 0.08
+        bs.inputs["Coat Weight"].default_value = 0.18
+        bs.inputs["Coat Roughness"].default_value = 0.24
 
     texcoord = n.new("ShaderNodeTexCoord")
     noise = n.new("ShaderNodeTexNoise")
@@ -127,7 +127,7 @@ def make_orb_material(name, phase):
     l.new(ramp.outputs["Color"], bs.inputs["Base Color"])
     if "Emission Color" in bs.inputs:
         l.new(ramp.outputs["Color"], bs.inputs["Emission Color"])
-        bs.inputs["Emission Strength"].default_value = 0.42
+        bs.inputs["Emission Strength"].default_value = 1.15
     else:
         l.new(ramp.outputs["Color"], bs.inputs["Emission"])
         bs.inputs["Emission Strength"].default_value = 1.65
@@ -298,11 +298,11 @@ for i, pts in enumerate(branch_specs):
 
 # Two stronger foreground roots visibly embrace the orb instead of hiding behind it.
 front_cradles = [
-    [(-0.10, -0.12, 4.18), (-0.40, -0.60, 4.42), (-0.66, -0.69, 4.72), (-0.73, -0.70, 5.05), (-0.62, -0.65, 5.36), (-0.38, -0.55, 5.58)],
-    [(0.10, -0.10, 4.18), (0.40, -0.60, 4.42), (0.66, -0.69, 4.72), (0.73, -0.70, 5.05), (0.62, -0.65, 5.36), (0.38, -0.55, 5.58)],
+    [(-0.10, -0.12, 4.18), (-0.42, -0.78, 4.42), (-0.70, -0.86, 4.72), (-0.78, -0.88, 5.05), (-0.70, -0.82, 5.36), (-0.42, -0.72, 5.58)],
+    [(0.10, -0.10, 4.18), (0.42, -0.78, 4.42), (0.70, -0.86, 4.72), (0.78, -0.88, 5.05), (0.70, -0.82, 5.36), (0.42, -0.72, 5.58)],
 ]
 for i, pts in enumerate(front_cradles):
-    curve_obj(f"02b | Foreground living root {i+1}", pts, [0.82, 0.72, 0.55, 0.38, 0.22, 0.035], wood, bevel=0.092, resolution=12)
+    curve_obj(f"02b | Foreground living root {i+1}", pts, [0.82, 0.72, 0.55, 0.38, 0.22, 0.035], wood, bevel=0.125, resolution=12)
     # A fine amber sap line follows the outside edge of each root.
     sap_pts = [(x * 1.025, y - 0.026, z) for x, y, z in pts[1:]]
     curve_obj(f"Root sap vein {i+1}", sap_pts, [0.7, 0.65, 0.5, 0.3, 0.02], warm_glow, bevel=0.009, resolution=5)
