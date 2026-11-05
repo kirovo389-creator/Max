@@ -101,10 +101,10 @@ def make_orb_material(name, phase):
     texcoord = n.new("ShaderNodeTexCoord")
     noise = n.new("ShaderNodeTexNoise")
     noise.noise_dimensions = "4D"
-    noise.inputs["Scale"].default_value = 4.1
-    noise.inputs["Detail"].default_value = 5.0
+    noise.inputs["Scale"].default_value = 2.25
+    noise.inputs["Detail"].default_value = 7.0
     noise.inputs["Roughness"].default_value = 0.72
-    noise.inputs["Distortion"].default_value = 2.6
+    noise.inputs["Distortion"].default_value = 4.0
     noise.inputs["W"].default_value = phase
     l.new(texcoord.outputs["Generated"], noise.inputs["Vector"])
 
@@ -112,11 +112,11 @@ def make_orb_material(name, phase):
     cr = ramp.color_ramp
     cr.elements.remove(cr.elements[1])
     stops = [
-        (0.08, (0.018, 0.035, 0.22, 1)),
-        (0.27, (0.08, 0.72, 0.82, 1)),
-        (0.48, (0.34, 0.06, 0.72, 1)),
-        (0.67, (0.95, 0.30, 0.12, 1)),
-        (0.84, (0.16, 0.85, 0.55, 1)),
+        (0.12, (0.004, 0.012, 0.12, 1)),
+        (0.31, (0.005, 0.42, 0.92, 1)),
+        (0.46, (0.015, 0.82, 0.72, 1)),
+        (0.60, (0.42, 0.018, 0.88, 1)),
+        (0.75, (1.0, 0.18, 0.055, 1)),
     ]
     cr.elements[0].position = stops[0][0]
     cr.elements[0].color = stops[0][1]
@@ -127,7 +127,7 @@ def make_orb_material(name, phase):
     l.new(ramp.outputs["Color"], bs.inputs["Base Color"])
     if "Emission Color" in bs.inputs:
         l.new(ramp.outputs["Color"], bs.inputs["Emission Color"])
-        bs.inputs["Emission Strength"].default_value = 0.72
+        bs.inputs["Emission Strength"].default_value = 0.42
     else:
         l.new(ramp.outputs["Color"], bs.inputs["Emission"])
         bs.inputs["Emission Strength"].default_value = 1.65
@@ -234,7 +234,7 @@ leaf_mats = [
     set_principled(bpy.data.materials.new("Moonlit teal leaves"), (0.035, 0.27, 0.31), metallic=0.22, roughness=0.24),
 ]
 orb_mat = make_orb_material("Prismatic living light | animated iridescence", 0.0)
-core_mat = emission_mat("Orb inner heart", (0.20, 0.65, 1.0), 2.2)
+core_mat = emission_mat("Orb inner heart", (0.025, 0.22, 0.95), 0.65)
 cyan_glow = emission_mat("Aether cyan", (0.12, 0.74, 1.0), 3.0)
 mint_glow = emission_mat("Spirit mint", (0.15, 1.0, 0.58), 2.3)
 violet_glow = emission_mat("Arcane violet", (0.48, 0.16, 1.0), 2.5)
@@ -274,7 +274,7 @@ trunk_points = [
     (0.06, 0.015, 3.72), (0.0, 0.02, 4.02), (0.07, 0.0, 4.28),
 ]
 trunk_r = [0.95, 1.05, 0.82, 0.74, 0.72, 0.66, 0.61, 0.58, 0.55, 0.51, 0.46, 0.40]
-trunk = curve_obj("01 | Living heartwood staff", trunk_points, trunk_r, wood, bevel=0.145, resolution=12)
+trunk = curve_obj("01 | Living heartwood staff", trunk_points, trunk_r, wood, bevel=0.18, resolution=12)
 
 # Split roots at the base.
 root_branches = [
@@ -295,6 +295,17 @@ branch_specs = [
 ]
 for i, pts in enumerate(branch_specs):
     curve_obj(f"02 | Orb cradle branch {i+1}", pts, [0.78, 0.68, 0.48, 0.28, 0.16, 0.04][:len(pts)], wood, bevel=0.105 if i < 2 else 0.075, resolution=10)
+
+# Two stronger foreground roots visibly embrace the orb instead of hiding behind it.
+front_cradles = [
+    [(-0.10, -0.12, 4.18), (-0.40, -0.60, 4.42), (-0.66, -0.69, 4.72), (-0.73, -0.70, 5.05), (-0.62, -0.65, 5.36), (-0.38, -0.55, 5.58)],
+    [(0.10, -0.10, 4.18), (0.40, -0.60, 4.42), (0.66, -0.69, 4.72), (0.73, -0.70, 5.05), (0.62, -0.65, 5.36), (0.38, -0.55, 5.58)],
+]
+for i, pts in enumerate(front_cradles):
+    curve_obj(f"02b | Foreground living root {i+1}", pts, [0.82, 0.72, 0.55, 0.38, 0.22, 0.035], wood, bevel=0.092, resolution=12)
+    # A fine amber sap line follows the outside edge of each root.
+    sap_pts = [(x * 1.025, y - 0.026, z) for x, y, z in pts[1:]]
+    curve_obj(f"Root sap vein {i+1}", sap_pts, [0.7, 0.65, 0.5, 0.3, 0.02], warm_glow, bevel=0.009, resolution=5)
 
 # Fine twig curls and small leaves on upper branches.
 for i in range(9):
@@ -331,8 +342,8 @@ for i in range(8):
 
 # Central orb, inner luminous heart, and concentric arcane geometry.
 ORB = (0.0, 0.0, 5.02)
-uv_sphere("04 | The Wildheart — prismatic orb", ORB, (0.66, 0.66, 0.66), orb_mat, 96, 64)
-uv_sphere("Luminous core beneath the glass", (0.0, -0.012, 5.02), (0.37, 0.37, 0.37), core_mat, 64, 48)
+uv_sphere("04 | The Wildheart — prismatic orb", ORB, (0.72, 0.72, 0.72), orb_mat, 128, 96)
+uv_sphere("Luminous core beneath the glass", (0.0, -0.012, 5.02), (0.29, 0.29, 0.29), core_mat, 96, 64)
 
 # Thin orbital rings at different inclinations.
 ring1 = torus("05 | Equatorial orbit", ORB, 0.84, 0.018, gold_light, (math.radians(68), math.radians(12), 0))
@@ -449,15 +460,15 @@ add_area("Golden branch edge", (3, 1, 4.7), (0, 0, 4.2), 620, (1.0, 0.42, 0.12),
 bpy.ops.object.light_add(type="POINT", location=(0, -0.15, 5.02))
 orb_light = bpy.context.object
 orb_light.name = "Prismatic orb | animated radiance"
-orb_light.data.energy = 115
+orb_light.data.energy = 45
 orb_light.data.color = (0.18, 0.58, 1.0)
 orb_light.data.shadow_soft_size = 1.05
 for frame, energy, color in [
-    (1, 90, (0.12, 0.52, 1.0)),
-    (49, 135, (0.42, 0.18, 1.0)),
-    (FPS * 4, 115, (0.12, 1.0, 0.62)),
-    (145, 145, (1.0, 0.35, 0.12)),
-    (LAST_FRAME, 90, (0.12, 0.52, 1.0)),
+    (1, 35, (0.12, 0.52, 1.0)),
+    (49, 48, (0.42, 0.18, 1.0)),
+    (FPS * 4, 40, (0.12, 1.0, 0.62)),
+    (145, 52, (1.0, 0.35, 0.12)),
+    (LAST_FRAME, 35, (0.12, 0.52, 1.0)),
 ]:
     orb_light.data.energy = energy
     orb_light.data.color = color
