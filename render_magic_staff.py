@@ -518,3 +518,5 @@ for frame in range(scene.frame_start, scene.frame_end + 1):
         print(f"PROGRESS: rendered {frame}/{scene.frame_end}", flush=True)
 
 print("RENDER_COMPLETE", flush=True)
+
+# Build trigger: render workflow should run on this commit.
