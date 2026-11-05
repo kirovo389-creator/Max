@@ -1,4 +1,4 @@
-name: Render The Wildheart
+name: Render The Wildheart — 60 FPS
 
 on:
   push:
@@ -9,25 +9,25 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: wildheart-preview-fast
-  cancel-in-progress: true
+  group: wildheart-final-render
+  cancel-in-progress: false
 
 jobs:
-  preview:
-    name: Blender preview and visual check
+  render:
+    name: Blender 4.5 LTS — 1080p 60 FPS
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 360
     steps:
       - name: Checkout scene
         uses: actions/checkout@v4
 
-      - name: Install preview dependencies
+      - name: Install Blender and video dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb libgl1-mesa-dri libegl1 libxkbcommon0 libsm6 libxi6 libxrender1 libxxf86vm1
+          sudo apt-get install -y ffmpeg xvfb libgl1-mesa-dri libegl1 libxkbcommon0 libsm6 libxi6 libxrender1 libxxf86vm1
 
       - name: Download and verify Blender 4.5.15 LTS
         shell: bash
@@ -42,48 +42,80 @@ jobs:
           DOWNLOADED=0
           for BASE in "${BASES[@]}"; do
             echo "Trying Blender mirror: $BASE"
-            if curl -fL --retry 2 --retry-all-errors --retry-delay 3 "$BASE/$FILE" -o "$FILE"; then
+            if curl -fL --connect-timeout 20 --max-time 240 --retry 2 --retry-all-errors --retry-delay 3 "$BASE/$FILE" -o "$FILE"; then
               DOWNLOADED=1
               break
             fi
           done
           test "$DOWNLOADED" -eq 1
-          curl -fsSL "https://mirror.blender.org/release/Blender4.5/blender-4.5.15.sha256" -o blender.sha256
+
+          CHECKSUM_OK=0
+          for BASE in "${BASES[@]}"; do
+            if curl -fLsS --connect-timeout 15 --max-time 45 "$BASE/blender-4.5.15.sha256" -o blender.sha256; then
+              CHECKSUM_OK=1
+              break
+            fi
+          done
+          test "$CHECKSUM_OK" -eq 1
           EXPECTED="$(grep "$FILE" blender.sha256 | awk '{print $1}' | head -n1)"
           test -n "$EXPECTED"
           echo "$EXPECTED  $FILE" | sha256sum --check -
+
           tar -xf "$FILE"
           BLENDER_DIR="$(find . -maxdepth 1 -type d -name 'blender-4.5.15*' | head -n1)"
           test -x "$BLENDER_DIR/blender"
           echo "BLENDER_BIN=$BLENDER_DIR/blender" >> "$GITHUB_ENV"
 
-      - name: Render 3 diagnostic frames
+      - name: Render all 480 frames in Blender
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
           MESA_GL_VERSION_OVERRIDE: "4.5"
+          OMP_NUM_THREADS: "2"
         run: |
           set -euo pipefail
-          mkdir -p output
-          xvfb-run -a -s "-screen 0 1920x1080x24" "$BLENDER_BIN"             -b --threads 2 --python render_magic_staff.py -- --output-dir output --preview-only
-          test -s output/check/check_0001.png
-          test -s output/check/check_0240.png
-          test -s output/check/check_0480.png
+          mkdir -p output/frames
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$BLENDER_BIN"             -b --threads 2 --python render_magic_staff.py -- --output-dir output
 
-      - name: Build visual contact sheet
+          FRAME_COUNT="$(find output/frames -maxdepth 1 -type f -name 'frame_*.png' | wc -l)"
+          echo "Rendered PNG frames: $FRAME_COUNT"
+          test "$FRAME_COUNT" -eq 480
+          test -s output/wildheart_staff.blend
+
+      - name: Encode H.264 MP4 at 60 FPS
         run: |
           set -euo pipefail
-          sudo apt-get install -y ffmpeg
-          ffmpeg -hide_banner -loglevel warning -y             -i output/check/check_0001.png             -i output/check/check_0240.png             -i output/check/check_0480.png             -filter_complex "[0:v][1:v][2:v]hstack=inputs=3[stack]"             -map "[stack]" -frames:v 1 output/visual_check.png
+          ffmpeg -hide_banner -loglevel warning -y             -framerate 60 -start_number 1 -i output/frames/frame_%04d.png             -frames:v 480 -c:v libx264 -preset slow -crf 17             -pix_fmt yuv420p -r 60 -movflags +faststart             output/wildheart_staff.mp4
 
-      - name: Upload preview proof
+          ffprobe -v error -select_streams v:0 -count_frames             -show_entries stream=codec_name,width,height,r_frame_rate,nb_read_frames             -show_entries format=duration             -of default=noprint_wrappers=1 output/wildheart_staff.mp4
+
+          FPS="$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 output/wildheart_staff.mp4)"
+          FRAMES="$(ffprobe -v error -select_streams v:0 -count_frames -show_entries stream=nb_read_frames -of csv=p=0 output/wildheart_staff.mp4)"
+          RES="$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x output/wildheart_staff.mp4)"
+          test "$FPS" = "60/1"
+          test "$FRAMES" = "480"
+          test "$RES" = "1920x1080"
+
+      - name: Create full-resolution preview still and contact sheet
+        run: |
+          set -euo pipefail
+          ffmpeg -hide_banner -loglevel error -y             -ss 4 -i output/wildheart_staff.mp4 -frames:v 1 -q:v 2 -update 1             output/preview.png
+
+          ffmpeg -hide_banner -loglevel warning -y             -i output/frames/frame_0001.png             -i output/frames/frame_0240.png             -i output/frames/frame_0480.png             -filter_complex "[0:v]scale=640:360[a];[1:v]scale=640:360[b];[2:v]scale=640:360[c];[a][b][c]hstack=inputs=3[stack]"             -map "[stack]" -frames:v 1 -update 1 output/contact_sheet.png
+
+      - name: Upload MP4, editable scene and screenshots
         uses: actions/upload-artifact@v4
         with:
-          name: wildheart-visual-check
+          name: wildheart-staff-1080p-60fps
           path: |
-            output/visual_check.png
-            output/check/check_0001.png
-            output/check/check_0240.png
-            output/check/check_0480.png
+            output/wildheart_staff.mp4
             output/wildheart_staff.blend
+            output/preview.png
+            output/contact_sheet.png
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
+
+      - name: Publish downloadable GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "wildheart-60fps-v1-${{ github.run_number }}"             output/wildheart_staff.mp4             output/wildheart_staff.blend             output/preview.png             output/contact_sheet.png             --title "The Wildheart — 1080p 60 FPS Blender Animation"             --notes "Procedural magical wooden staff animation. 1920×1080, 60 fps, 8 seconds, H.264. Includes the editable Blender scene and render screenshots."
