@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: wildheart-final-render
+  group: wildheart-final-render-optimized
   cancel-in-progress: true
 
 jobs:
