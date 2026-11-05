@@ -9,27 +9,27 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: wildheart-render
   cancel-in-progress: false
 
 jobs:
-  render:
-    name: Blender render → MP4
+  preview:
+    name: Blender preview and visual check
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 60
     steps:
       - name: Checkout scene
         uses: actions/checkout@v4
 
-      - name: Install render dependencies
+      - name: Install preview dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg xvfb libgl1-mesa-dri libegl1 libxkbcommon0 libsm6 libxi6 libxrender1 libxxf86vm1
+          sudo apt-get install -y xvfb libgl1-mesa-dri libegl1 libxkbcommon0 libsm6 libxi6 libxrender1 libxxf86vm1
 
-      - name: Download Blender 4.5.15 LTS
+      - name: Download and verify Blender 4.5.15 LTS
         shell: bash
         run: |
           set -euo pipefail
@@ -45,47 +45,33 @@ jobs:
           test -x "$BLENDER_DIR/blender"
           echo "BLENDER_BIN=$BLENDER_DIR/blender" >> "$GITHUB_ENV"
 
-      - name: Render the scene
+      - name: Render 3 diagnostic frames
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
           MESA_GL_VERSION_OVERRIDE: "4.5"
         run: |
-          mkdir -p output/frames
-          xvfb-run -a -s "-screen 0 1920x1080x24" "$BLENDER_BIN" \
-            -b --threads 2 --python render_magic_staff.py -- --output-dir output
+          set -euo pipefail
+          mkdir -p output
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$BLENDER_BIN"             -b --threads 2 --python render_magic_staff.py -- --output-dir output --preview-only
+          test -s output/check/check_0001.png
+          test -s output/check/check_0240.png
+          test -s output/check/check_0480.png
 
-      - name: Encode MP4 and create preview
+      - name: Build visual contact sheet
         run: |
           set -euo pipefail
-          ffmpeg -hide_banner -loglevel warning -y \
-            -framerate 24 -i output/frames/frame_%04d.png \
-            -c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p \
-            -movflags +faststart output/wildheart_staff.mp4
-          ffmpeg -hide_banner -loglevel error -y \
-            -ss 4 -i output/wildheart_staff.mp4 -frames:v 1 -q:v 2 output/preview.png
-          ffprobe -v error -select_streams v:0 \
-            -show_entries stream=codec_name,width,height,r_frame_rate \
-            -show_entries format=duration -of default=noprint_wrappers=1 \
-            output/wildheart_staff.mp4
+          sudo apt-get install -y ffmpeg
+          ffmpeg -hide_banner -loglevel warning -y             -i output/check/check_0001.png             -i output/check/check_0240.png             -i output/check/check_0480.png             -filter_complex "[0:v][1:v][2:v]hstack=inputs=3[stack]"             -map "[stack]" -frames:v 1 output/visual_check.png
 
-      - name: Upload render files as workflow artifact
+      - name: Upload preview proof
         uses: actions/upload-artifact@v4
         with:
-          name: wildheart-staff-mp4-and-blend
+          name: wildheart-visual-check
           path: |
-            output/wildheart_staff.mp4
+            output/visual_check.png
+            output/check/check_0001.png
+            output/check/check_0240.png
+            output/check/check_0480.png
             output/wildheart_staff.blend
-            output/preview.png
           if-no-files-found: error
-          retention-days: 30
-
-      - name: Publish downloadable GitHub Release
-        env:
-          GH_TOKEN: \${{ github.token }}
-        run: |
-          gh release create "wildheart-v1-\${{ github.run_number }}" \
-            output/wildheart_staff.mp4 \
-            output/wildheart_staff.blend \
-            output/preview.png \
-            --title "The Wildheart — Cinematic Blender Animation" \
-            --notes "Procedural magical wooden staff animation. 1280×720, 24 fps, H.264 MP4. Editable Blender scene included."
+          retention-days: 7
