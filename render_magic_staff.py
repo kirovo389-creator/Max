@@ -239,10 +239,10 @@ warm_glow = emission_mat("Ancient amber", (1.0, 0.48, 0.10), 1.6)
 # Scene and world
 scene = bpy.context.scene
 scene.render.engine = "BLENDER_EEVEE_NEXT"
-scene.eevee.taa_render_samples = 32
+scene.eevee.taa_render_samples = 4
 scene.render.resolution_x = 1920
 scene.render.resolution_y = 1080
-scene.render.resolution_percentage = 100
+scene.render.resolution_percentage = 80
 scene.render.fps = FPS
 scene.frame_start = 1
 scene.frame_end = LAST_FRAME
