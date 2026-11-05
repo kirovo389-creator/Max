@@ -86,37 +86,40 @@ def make_wood():
     return m
 
 def make_orb_material(name, phase):
+    # Pure emissive marbling keeps the jewel saturated instead of washing it out
+    # under the strong cinematic area lights.
     m = bpy.data.materials.new(name)
     m.use_nodes = True
     n = m.node_tree.nodes
     l = m.node_tree.links
-    bs = n.get("Principled BSDF")
-    bs.inputs["Metallic"].default_value = 0.28
-    bs.inputs["Roughness"].default_value = 0.32
-    bs.inputs["IOR"].default_value = 1.38
-    if "Coat Weight" in bs.inputs:
-        bs.inputs["Coat Weight"].default_value = 0.18
-        bs.inputs["Coat Roughness"].default_value = 0.24
+    n.clear()
 
+    output = n.new("ShaderNodeOutputMaterial")
+    output.location = (620, 80)
     texcoord = n.new("ShaderNodeTexCoord")
+    texcoord.location = (-620, 80)
+
     noise = n.new("ShaderNodeTexNoise")
+    noise.location = (-390, 80)
     noise.noise_dimensions = "4D"
-    noise.inputs["Scale"].default_value = 2.25
+    noise.inputs["Scale"].default_value = 2.15
     noise.inputs["Detail"].default_value = 7.0
-    noise.inputs["Roughness"].default_value = 0.72
-    noise.inputs["Distortion"].default_value = 4.0
+    noise.inputs["Roughness"].default_value = 0.78
+    noise.inputs["Distortion"].default_value = 4.2
     noise.inputs["W"].default_value = phase
     l.new(texcoord.outputs["Generated"], noise.inputs["Vector"])
 
     ramp = n.new("ShaderNodeValToRGB")
+    ramp.location = (-100, 80)
     cr = ramp.color_ramp
     cr.elements.remove(cr.elements[1])
     stops = [
-        (0.12, (0.004, 0.012, 0.12, 1)),
-        (0.31, (0.005, 0.42, 0.92, 1)),
-        (0.46, (0.015, 0.82, 0.72, 1)),
-        (0.60, (0.42, 0.018, 0.88, 1)),
-        (0.75, (1.0, 0.18, 0.055, 1)),
+        (0.10, (0.004, 0.012, 0.18, 1)),
+        (0.30, (0.004, 0.30, 0.90, 1)),
+        (0.45, (0.005, 0.82, 0.70, 1)),
+        (0.59, (0.34, 0.008, 0.82, 1)),
+        (0.73, (0.92, 0.018, 0.30, 1)),
+        (0.88, (1.00, 0.28, 0.018, 1)),
     ]
     cr.elements[0].position = stops[0][0]
     cr.elements[0].color = stops[0][1]
@@ -124,22 +127,15 @@ def make_orb_material(name, phase):
         el = cr.elements.new(pos)
         el.color = color
     l.new(noise.outputs["Fac"], ramp.inputs["Fac"])
-    l.new(ramp.outputs["Color"], bs.inputs["Base Color"])
-    if "Emission Color" in bs.inputs:
-        l.new(ramp.outputs["Color"], bs.inputs["Emission Color"])
-        bs.inputs["Emission Strength"].default_value = 1.15
-    else:
-        l.new(ramp.outputs["Color"], bs.inputs["Emission"])
-        bs.inputs["Emission Strength"].default_value = 1.65
 
-    bump = n.new("ShaderNodeBump")
-    bump.inputs["Strength"].default_value = 0.12
-    bump.inputs["Distance"].default_value = 0.025
-    l.new(noise.outputs["Fac"], bump.inputs["Height"])
-    l.new(bump.outputs["Normal"], bs.inputs["Normal"])
+    emission = n.new("ShaderNodeEmission")
+    emission.location = (300, 80)
+    emission.inputs["Strength"].default_value = 0.9
+    l.new(ramp.outputs["Color"], emission.inputs["Color"])
+    l.new(emission.outputs["Emission"], output.inputs["Surface"])
 
-    # Slow chromatic drift across the orb.
-    for frame, value in ((1, phase), (FPS * 4, phase + 1.1), (LAST_FRAME, phase + 2.2)):
+    # Animate the 4D coordinate so the colored currents flow inside the sphere.
+    for frame, value in ((1, phase), (FPS * 4, phase + 2.1), (LAST_FRAME, phase + 4.2)):
         noise.inputs["W"].default_value = value
         noise.inputs["W"].keyframe_insert(data_path="default_value", frame=frame)
     return m
