@@ -91,20 +91,20 @@ def make_orb_material(name, phase):
     n = m.node_tree.nodes
     l = m.node_tree.links
     bs = n.get("Principled BSDF")
-    bs.inputs["Metallic"].default_value = 0.28
-    bs.inputs["Roughness"].default_value = 0.105
+    bs.inputs["Metallic"].default_value = 0.14
+    bs.inputs["Roughness"].default_value = 0.16
     bs.inputs["IOR"].default_value = 1.38
     if "Coat Weight" in bs.inputs:
-        bs.inputs["Coat Weight"].default_value = 0.55
+        bs.inputs["Coat Weight"].default_value = 0.72
         bs.inputs["Coat Roughness"].default_value = 0.08
 
     texcoord = n.new("ShaderNodeTexCoord")
     noise = n.new("ShaderNodeTexNoise")
     noise.noise_dimensions = "4D"
-    noise.inputs["Scale"].default_value = 2.8
+    noise.inputs["Scale"].default_value = 4.1
     noise.inputs["Detail"].default_value = 5.0
     noise.inputs["Roughness"].default_value = 0.72
-    noise.inputs["Distortion"].default_value = 1.8
+    noise.inputs["Distortion"].default_value = 2.6
     noise.inputs["W"].default_value = phase
     l.new(texcoord.outputs["Generated"], noise.inputs["Vector"])
 
@@ -127,7 +127,7 @@ def make_orb_material(name, phase):
     l.new(ramp.outputs["Color"], bs.inputs["Base Color"])
     if "Emission Color" in bs.inputs:
         l.new(ramp.outputs["Color"], bs.inputs["Emission Color"])
-        bs.inputs["Emission Strength"].default_value = 1.65
+        bs.inputs["Emission Strength"].default_value = 0.72
     else:
         l.new(ramp.outputs["Color"], bs.inputs["Emission"])
         bs.inputs["Emission Strength"].default_value = 1.65
@@ -234,7 +234,7 @@ leaf_mats = [
     set_principled(bpy.data.materials.new("Moonlit teal leaves"), (0.035, 0.27, 0.31), metallic=0.22, roughness=0.24),
 ]
 orb_mat = make_orb_material("Prismatic living light | animated iridescence", 0.0)
-core_mat = emission_mat("Orb inner heart", (0.20, 0.65, 1.0), 3.5)
+core_mat = emission_mat("Orb inner heart", (0.20, 0.65, 1.0), 2.2)
 cyan_glow = emission_mat("Aether cyan", (0.12, 0.74, 1.0), 3.0)
 mint_glow = emission_mat("Spirit mint", (0.15, 1.0, 0.58), 2.3)
 violet_glow = emission_mat("Arcane violet", (0.48, 0.16, 1.0), 2.5)
@@ -243,7 +243,7 @@ warm_glow = emission_mat("Ancient amber", (1.0, 0.48, 0.10), 1.6)
 # Scene and world
 scene = bpy.context.scene
 scene.render.engine = "BLENDER_EEVEE_NEXT"
-scene.eevee.taa_render_samples = 96
+scene.eevee.taa_render_samples = 32
 scene.render.resolution_x = 1920
 scene.render.resolution_y = 1080
 scene.render.resolution_percentage = 100
@@ -449,15 +449,15 @@ add_area("Golden branch edge", (3, 1, 4.7), (0, 0, 4.2), 620, (1.0, 0.42, 0.12),
 bpy.ops.object.light_add(type="POINT", location=(0, -0.15, 5.02))
 orb_light = bpy.context.object
 orb_light.name = "Prismatic orb | animated radiance"
-orb_light.data.energy = 175
+orb_light.data.energy = 115
 orb_light.data.color = (0.18, 0.58, 1.0)
 orb_light.data.shadow_soft_size = 1.05
 for frame, energy, color in [
-    (1, 145, (0.12, 0.52, 1.0)),
-    (49, 220, (0.42, 0.18, 1.0)),
-    (FPS * 4, 185, (0.12, 1.0, 0.62)),
-    (145, 235, (1.0, 0.35, 0.12)),
-    (LAST_FRAME, 145, (0.12, 0.52, 1.0)),
+    (1, 90, (0.12, 0.52, 1.0)),
+    (49, 135, (0.42, 0.18, 1.0)),
+    (FPS * 4, 115, (0.12, 1.0, 0.62)),
+    (145, 145, (1.0, 0.35, 0.12)),
+    (LAST_FRAME, 90, (0.12, 0.52, 1.0)),
 ]:
     orb_light.data.energy = energy
     orb_light.data.color = color
@@ -471,7 +471,7 @@ focus.name = "Camera focus | Wildheart"
 bpy.ops.object.camera_add(location=(7.4, -13.6, 6.1))
 cam = bpy.context.object
 cam.name = "11 | Cinematic orbit camera"
-cam.data.lens = 58
+cam.data.lens = 46
 cam.data.sensor_width = 36
 cam.data.dof.use_dof = True
 cam.data.dof.focus_object = focus
@@ -502,8 +502,8 @@ rl = nodes.new("CompositorNodeRLayers")
 glare = nodes.new("CompositorNodeGlare")
 glare.glare_type = "FOG_GLOW"
 glare.quality = "HIGH"
-glare.threshold = 1.1
-glare.size = 9
+glare.threshold = 1.35
+glare.size = 8
 comp = nodes.new("CompositorNodeComposite")
 scene.node_tree.links.new(rl.outputs["Image"], glare.inputs["Image"])
 scene.node_tree.links.new(glare.outputs["Image"], comp.inputs["Image"])
