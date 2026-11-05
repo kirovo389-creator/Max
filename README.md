@@ -1,15 +1,21 @@
 # The Wildheart — Blender animation
 
-A procedural, asset-free cinematic scene of an ancient living-wood staff crowned by a prismatic, iridescent magic orb.
+A procedural cinematic 3D scene of an ancient living-wood staff crowned by a prismatic magical orb.
 
-## Output
-- `wildheart_staff.mp4`: 1280×720, 24 fps, 8 seconds, H.264
-- `wildheart_staff.blend`: editable Blender scene
-- `preview.png`: representative frame
+## Final render target
+- MP4: 1920×1080, 60 fps, 8 seconds, H.264
+- Editable source: `wildheart_staff.blend`
+- Visual proof: contact sheet + 4-second preview still
 
-## Render
-GitHub Actions downloads the official Blender 4.5.15 Linux build, creates the scene with `render_magic_staff.py`, renders a PNG sequence, and encodes it to MP4 with FFmpeg.
+## Scene features
+- Procedural walnut-like wood grain and root-shaped branches
+- Animated 4D-noise emissive orb with blue, cyan, violet, magenta and amber color currents
+- Rotating gold, cyan and violet orbital rings
+- Aether spirals around the shaft
+- Floating spirit motes and grove silhouettes
+- Cinematic lighting, depth of field and fog-glow compositing
 
-The workflow runs after its first commit to the default branch, and can also be run manually from **Actions → Render The Wildheart**.
+## Build
+GitHub Actions downloads and checksum-verifies Blender 4.5.15 LTS, renders the 480-frame sequence, encodes H.264 MP4 at 60 fps, validates the output with ffprobe, and publishes the MP4 and editable .blend file as a GitHub Release.
 
 No external assets are required.
