@@ -516,7 +516,8 @@ bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "wildheart_staff.blend"))
 
 # First render a small contact sheet for visual quality inspection.
 if PREVIEW_ONLY:
-    scene.render.resolution_percentage = 50
+    scene.render.resolution_percentage = 25
+    scene.eevee.taa_render_samples = 8
     check_dir = os.path.join(OUT, "check")
     os.makedirs(check_dir, exist_ok=True)
     for frame in (1, FPS * 4, LAST_FRAME):
