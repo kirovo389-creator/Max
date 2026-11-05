@@ -24,6 +24,10 @@ FRAMES_DIR = os.path.join(OUT, "frames")
 os.makedirs(FRAMES_DIR, exist_ok=True)
 
 random.seed(73)
+FPS = 60
+DURATION_SECONDS = 8
+LAST_FRAME = FPS * DURATION_SECONDS
+PREVIEW_ONLY = "--preview-only" in (sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete(use_global=False)
 for datablocks in (bpy.data.materials, bpy.data.curves, bpy.data.meshes, bpy.data.cameras, bpy.data.lights):
@@ -96,6 +100,7 @@ def make_orb_material(name, phase):
 
     texcoord = n.new("ShaderNodeTexCoord")
     noise = n.new("ShaderNodeTexNoise")
+    noise.noise_dimensions = "4D"
     noise.inputs["Scale"].default_value = 2.8
     noise.inputs["Detail"].default_value = 5.0
     noise.inputs["Roughness"].default_value = 0.72
@@ -134,7 +139,7 @@ def make_orb_material(name, phase):
     l.new(bump.outputs["Normal"], bs.inputs["Normal"])
 
     # Slow chromatic drift across the orb.
-    for frame, value in ((1, phase), (97, phase + 1.1), (193, phase + 2.2)):
+    for frame, value in ((1, phase), (FPS * 4, phase + 1.1), (LAST_FRAME, phase + 2.2)):
         noise.inputs["W"].default_value = value
         noise.inputs["W"].keyframe_insert(data_path="default_value", frame=frame)
     return m
@@ -208,7 +213,7 @@ def add_area(name, loc, target, power, color, size):
     aim(ob, target)
     return ob
 
-def animate_rotation(ob, axis, start, end, first=1, last=193):
+def animate_rotation(ob, axis, start, end, first=1, last=LAST_FRAME):
     ob.rotation_euler[axis] = start
     ob.keyframe_insert(data_path="rotation_euler", frame=first)
     ob.rotation_euler[axis] = end
@@ -238,13 +243,13 @@ warm_glow = emission_mat("Ancient amber", (1.0, 0.48, 0.10), 1.6)
 # Scene and world
 scene = bpy.context.scene
 scene.render.engine = "BLENDER_EEVEE_NEXT"
-scene.eevee.taa_render_samples = 64
-scene.render.resolution_x = 1280
-scene.render.resolution_y = 720
+scene.eevee.taa_render_samples = 96
+scene.render.resolution_x = 1920
+scene.render.resolution_y = 1080
 scene.render.resolution_percentage = 100
-scene.render.fps = 24
+scene.render.fps = FPS
 scene.frame_start = 1
-scene.frame_end = 192
+scene.frame_end = LAST_FRAME
 scene.render.image_settings.file_format = "PNG"
 scene.render.image_settings.color_mode = "RGBA"
 scene.render.film_transparent = False
@@ -333,9 +338,9 @@ uv_sphere("Luminous core beneath the glass", (0.0, -0.012, 5.02), (0.37, 0.37, 0
 ring1 = torus("05 | Equatorial orbit", ORB, 0.84, 0.018, gold_light, (math.radians(68), math.radians(12), 0))
 ring2 = torus("06 | Aether orbit", ORB, 0.92, 0.012, cyan_glow, (math.radians(22), math.radians(63), math.radians(15)))
 ring3 = torus("07 | Inner rune orbit", ORB, 0.74, 0.014, violet_glow, (math.radians(78), math.radians(-22), 0))
-animate_rotation(ring1, 2, 0, math.tau, 1, 193)
-animate_rotation(ring2, 1, 0, -math.tau, 1, 193)
-animate_rotation(ring3, 0, 0, math.tau, 1, 193)
+animate_rotation(ring1, 2, 0, math.tau, 1, LAST_FRAME)
+animate_rotation(ring2, 1, 0, -math.tau, 1, LAST_FRAME)
+animate_rotation(ring3, 0, 0, math.tau, 1, LAST_FRAME)
 
 # Curving gold filigree arcs echo the branches without obscuring the orb.
 for k in range(3):
@@ -348,7 +353,7 @@ for k in range(3):
         pts.append((rr * math.cos(a), rr * math.sin(a), 5.02 + 0.14 * math.sin(a * 1.15 + k * 1.7)))
         radii.append(0.65 + 0.25 * math.sin(math.pi * t))
     ob = curve_obj(f"Orb filigree strand {k+1}", pts, radii, gold, bevel=0.012, resolution=5)
-    animate_rotation(ob, 2, 0.0, (1 if k % 2 == 0 else -1) * 0.45, 1, 193)
+    animate_rotation(ob, 2, 0.0, (1 if k % 2 == 0 else -1) * 0.45, 1, LAST_FRAME)
 
 # Spiral of aether winding around the shaft and rising to the orb.
 for k, mat in enumerate([cyan_glow, violet_glow]):
@@ -362,11 +367,11 @@ for k, mat in enumerate([cyan_glow, violet_glow]):
         pts.append((radius * math.cos(angle), radius * math.sin(angle), z))
         rs.append(0.7 + 0.25 * math.sin(t * math.pi))
     ob = curve_obj(f"08 | Rising aether spiral {k+1}", pts, rs, mat, bevel=0.018, resolution=5)
-    animate_rotation(ob, 2, 0, (1 if k == 0 else -1) * 0.32, 1, 193)
+    animate_rotation(ob, 2, 0, (1 if k == 0 else -1) * 0.32, 1, LAST_FRAME)
 
 # A glowing runic halo just above the topmost branches.
 halo = torus("Crown halo", (0, 0, 5.02), 1.08, 0.009, mint_glow, (math.radians(90), 0, 0))
-animate_rotation(halo, 2, 0, -math.tau, 1, 193)
+animate_rotation(halo, 2, 0, -math.tau, 1, LAST_FRAME)
 
 # Small suspended motes, each with a subtle vertical drift.
 for i in range(78):
@@ -380,7 +385,7 @@ for i in range(78):
     p.location.z = z - 0.08
     p.keyframe_insert(data_path="location", frame=1)
     p.location.z = z + 0.08
-    p.keyframe_insert(data_path="location", frame=193)
+    p.keyframe_insert(data_path="location", frame=LAST_FRAME)
     if p.animation_data and p.animation_data.action:
         for fc in p.animation_data.action.fcurves:
             for key in fc.keyframe_points:
@@ -450,9 +455,9 @@ orb_light.data.shadow_soft_size = 1.05
 for frame, energy, color in [
     (1, 145, (0.12, 0.52, 1.0)),
     (49, 220, (0.42, 0.18, 1.0)),
-    (97, 185, (0.12, 1.0, 0.62)),
+    (FPS * 4, 185, (0.12, 1.0, 0.62)),
     (145, 235, (1.0, 0.35, 0.12)),
-    (193, 145, (0.12, 0.52, 1.0)),
+    (LAST_FRAME, 145, (0.12, 0.52, 1.0)),
 ]:
     orb_light.data.energy = energy
     orb_light.data.color = color
@@ -475,8 +480,8 @@ aim(cam, focus.location)
 scene.camera = cam
 for frame, loc in [
     (1, (7.4, -13.6, 6.1)),
-    (97, (8.0, -13.0, 6.0)),
-    (193, (7.1, -13.7, 6.35)),
+    (FPS * 4, (8.0, -13.0, 6.0)),
+    (LAST_FRAME, (7.1, -13.7, 6.35)),
 ]:
     cam.location = loc
     aim(cam, focus.location)
@@ -509,7 +514,19 @@ scene.render.resolution_percentage = 100
 scene.frame_set(1)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "wildheart_staff.blend"))
 
-# Deterministic frame rendering: workflow encodes these to H.264 MP4.
+# First render a small contact sheet for visual quality inspection.
+if PREVIEW_ONLY:
+    scene.render.resolution_percentage = 50
+    check_dir = os.path.join(OUT, "check")
+    os.makedirs(check_dir, exist_ok=True)
+    for frame in (1, FPS * 4, LAST_FRAME):
+        scene.frame_set(frame)
+        scene.render.filepath = os.path.join(check_dir, f"check_{frame:04d}.png")
+        bpy.ops.render.render(write_still=True)
+    print("PREVIEW_COMPLETE", flush=True)
+    sys.exit(0)
+
+# Deterministic full-resolution frame rendering: workflow encodes these to H.264 MP4.
 for frame in range(scene.frame_start, scene.frame_end + 1):
     scene.frame_set(frame)
     scene.render.filepath = os.path.join(FRAMES_DIR, f"frame_{frame:04d}.png")
