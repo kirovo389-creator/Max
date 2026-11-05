@@ -13,11 +13,11 @@ permissions:
 
 concurrency:
   group: wildheart-final-render
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   render:
-    name: Blender 4.5 LTS — 1080p 60 FPS
+    name: Blender 4.5 LTS — optimized 1080p 60 FPS
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -81,10 +81,10 @@ jobs:
           test "$FRAME_COUNT" -eq 480
           test -s output/wildheart_staff.blend
 
-      - name: Encode H.264 MP4 at 60 FPS
+      - name: Upscale and encode H.264 MP4 at 60 FPS
         run: |
           set -euo pipefail
-          ffmpeg -hide_banner -loglevel warning -y             -framerate 60 -start_number 1 -i output/frames/frame_%04d.png             -frames:v 480 -c:v libx264 -preset slow -crf 17             -pix_fmt yuv420p -r 60 -movflags +faststart             output/wildheart_staff.mp4
+          ffmpeg -hide_banner -loglevel warning -y             -framerate 60 -start_number 1 -i output/frames/frame_%04d.png             -frames:v 480 -vf "scale=1920:1080:flags=lanczos" -c:v libx264 -preset slow -crf 17             -pix_fmt yuv420p -r 60 -movflags +faststart             output/wildheart_staff.mp4
 
           ffprobe -v error -select_streams v:0 -count_frames             -show_entries stream=codec_name,width,height,r_frame_rate,nb_read_frames             -show_entries format=duration             -of default=noprint_wrappers=1 output/wildheart_staff.mp4
 
