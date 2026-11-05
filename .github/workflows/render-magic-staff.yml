@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: wildheart-render
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   preview:
