@@ -1,0 +1,91 @@
+name: Render The Wildheart
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "render_magic_staff.py"
+      - ".github/workflows/render-magic-staff.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wildheart-render
+  cancel-in-progress: false
+
+jobs:
+  render:
+    name: Blender render → MP4
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout scene
+        uses: actions/checkout@v4
+
+      - name: Install render dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg xvfb libgl1-mesa-dri libegl1 libxkbcommon0 libsm6 libxi6 libxrender1 libxxf86vm1
+
+      - name: Download Blender 4.5.15 LTS
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="blender-4.5.15-linux-x64.tar.xz"
+          BASE="https://download.blender.org/release/Blender4.5"
+          curl -fL --retry 4 --retry-delay 3 "$BASE/$FILE" -o "$FILE"
+          curl -fsSL "$BASE/blender-4.5.15.sha256" -o blender.sha256
+          EXPECTED="$(grep "$FILE" blender.sha256 | awk '{print $1}' | head -n1)"
+          test -n "$EXPECTED"
+          echo "$EXPECTED  $FILE" | sha256sum --check -
+          tar -xf "$FILE"
+          BLENDER_DIR="$(find . -maxdepth 1 -type d -name 'blender-4.5.15*' | head -n1)"
+          test -x "$BLENDER_DIR/blender"
+          echo "BLENDER_BIN=$BLENDER_DIR/blender" >> "$GITHUB_ENV"
+
+      - name: Render the scene
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          MESA_GL_VERSION_OVERRIDE: "4.5"
+        run: |
+          mkdir -p output/frames
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$BLENDER_BIN" \
+            -b --threads 2 --python render_magic_staff.py -- --output-dir output
+
+      - name: Encode MP4 and create preview
+        run: |
+          set -euo pipefail
+          ffmpeg -hide_banner -loglevel warning -y \
+            -framerate 24 -i output/frames/frame_%04d.png \
+            -c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p \
+            -movflags +faststart output/wildheart_staff.mp4
+          ffmpeg -hide_banner -loglevel error -y \
+            -ss 4 -i output/wildheart_staff.mp4 -frames:v 1 -q:v 2 output/preview.png
+          ffprobe -v error -select_streams v:0 \
+            -show_entries stream=codec_name,width,height,r_frame_rate \
+            -show_entries format=duration -of default=noprint_wrappers=1 \
+            output/wildheart_staff.mp4
+
+      - name: Upload render files as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wildheart-staff-mp4-and-blend
+          path: |
+            output/wildheart_staff.mp4
+            output/wildheart_staff.blend
+            output/preview.png
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish downloadable GitHub Release
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          gh release create "wildheart-v1-\${{ github.run_number }}" \
+            output/wildheart_staff.mp4 \
+            output/wildheart_staff.blend \
+            output/preview.png \
+            --title "The Wildheart — Cinematic Blender Animation" \
+            --notes "Procedural magical wooden staff animation. 1280×720, 24 fps, H.264 MP4. Editable Blender scene included."
